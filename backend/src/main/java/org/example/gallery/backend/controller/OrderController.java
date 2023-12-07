@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import javax.transaction.Transactional;
 import java.util.List;
 
 @RestController
@@ -21,6 +22,8 @@ public class OrderController {
 
     @Autowired
     JwtService jwtService;
+    @Autowired
+    CartRepository cartRepository;
 
     @Autowired
     OrderRepository orderRepository;
@@ -32,9 +35,11 @@ public class OrderController {
         if(!jwtService.isValid(token)){
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
         }
-        List<Order>orders=orderRepository.findAll();
+        int memberId=jwtService.getId(token);
+        List<Order>orders=orderRepository.findByMemberIdOrderByIdDesc(memberId);
         return new ResponseEntity<>(orders,HttpStatus.OK);
     }
+    @Transactional
     @PostMapping("/api/orders")
     public ResponseEntity pushOrder(
             @RequestBody OrderDto dto,
@@ -45,6 +50,7 @@ public class OrderController {
         if (!jwtService.isValid(token)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
         }
+        int memberId=jwtService.getId(token);
         Order order= new Order();
         order.setMemberId(jwtService.getId(token));
         order.setName(dto.getName());
@@ -54,6 +60,7 @@ public class OrderController {
         order.setItems(dto.getItems());
 
         orderRepository.save(order);
+        cartRepository.deleteByMemberId(memberId);
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
